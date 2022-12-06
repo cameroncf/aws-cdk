@@ -4,6 +4,7 @@
 #------------------------------------------------------------------
 set -eu
 scriptdir=$(cd $(dirname $0) && pwd)
+integdir=$(dirname $scriptdir)
 source ${scriptdir}/common.bash
 
 header TypeScript
@@ -16,18 +17,24 @@ else
     templates="$@"
 fi
 
+MIN_SUPPORTED_TS_VERSION="3.9"
+SUPPORTED_TS_VERSIONS=$(node ${integdir}/typescript-versions.js ${MIN_SUPPORTED_TS_VERSION})
+
 for template in $templates; do
-    echo "Trying TypeScript template $template"
+    for version in $SUPPORTED_TS_VERSIONS; do
+        echo "Trying TypeScript template $template with TS$version"
 
-    setup
+        setup
 
-    cdk init -l typescript $template
-    npm prune && npm ls # this will fail if we have unmet peer dependencies
-    npm run build
-    npm run test
+        cdk init -l typescript $template
+        npm install --save typescript@$version
+        npm prune && npm ls # this will fail if we have unmet peer dependencies
+        npm run build
+        npm run test
 
-    # Can't run `cdk synth` on libraries
-    if [[ $template != "lib" ]]; then
-        cdk synth
-    fi
+        # Can't run `cdk synth` on libraries
+        if [[ $template != "lib" ]]; then
+            cdk synth
+        fi
+    done
 done
